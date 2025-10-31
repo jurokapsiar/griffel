@@ -55,6 +55,27 @@ export const OverrideHighlightPanel: React.FC = () => {
     overrideClasses: string[];
   } | null>(null);
 
+  const getNoMatchMessage = () => {
+    if (!selectedElementInfo) return null;
+
+    const hasAnyMatch =
+      (highlightUiClasses && selectedElementInfo.hasUiClass) ||
+      (highlightOverrides && selectedElementInfo.hasOverrides);
+
+    if (hasAnyMatch) return null;
+
+    if (highlightUiClasses && highlightOverrides) {
+      return 'No matching classes found on selected element';
+    }
+    if (highlightUiClasses) {
+      return 'No UI classes found on selected element';
+    }
+    if (highlightOverrides) {
+      return 'No override classes found on selected element';
+    }
+    return null;
+  };
+
   // Effect to inject/remove highlighting styles
   React.useEffect(() => {
     if (!chrome.devtools) return;
@@ -74,7 +95,7 @@ export const OverrideHighlightPanel: React.FC = () => {
           // Highlight UI classes
           if (${highlightUiClasses}) {
             const uiElements = document.querySelectorAll('[class*="ui-"]');
-            uiElements.forEach((el, index) => {
+            uiElements.forEach(el => {
               el.setAttribute('data-griffel-ui-highlight', 'true');
             });
             cssRules += \`
@@ -95,10 +116,9 @@ export const OverrideHighlightPanel: React.FC = () => {
             const allElements = document.querySelectorAll('[class*="ui-"]');
             allElements.forEach(el => {
               const classList = Array.from(el.classList);
-              const hasUiClass = classList.some(c => c.startsWith('ui-'));
               const hasGriffelClass = classList.some(c => c.includes('___'));
               
-              if (hasUiClass && hasGriffelClass) {
+              if (hasGriffelClass) {
                 el.setAttribute('data-griffel-override-highlight', 'true');
               }
             });
@@ -212,18 +232,7 @@ export const OverrideHighlightPanel: React.FC = () => {
               <strong>Override Classes:</strong> {selectedElementInfo.overrideClasses.join(', ')}
             </div>
           )}
-          {highlightUiClasses &&
-            !selectedElementInfo.hasUiClass &&
-            highlightOverrides &&
-            !selectedElementInfo.hasOverrides && (
-              <div className={classes.infoItem}>No matching classes found on selected element</div>
-            )}
-          {highlightUiClasses && !selectedElementInfo.hasUiClass && !highlightOverrides && (
-            <div className={classes.infoItem}>No UI classes found on selected element</div>
-          )}
-          {highlightOverrides && !selectedElementInfo.hasOverrides && !highlightUiClasses && (
-            <div className={classes.infoItem}>No override classes found on selected element</div>
-          )}
+          {getNoMatchMessage() && <div className={classes.infoItem}>{getNoMatchMessage()}</div>}
         </div>
       )}
     </div>
