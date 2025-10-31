@@ -5,6 +5,7 @@ import { SlotCSSRules } from './SlotCSSRules';
 import { filterSlots, getRulesBySlots } from './utils';
 import { tokens } from './themes';
 import { ViewContext } from './ViewContext';
+import { OverrideHighlightPanel } from './OverrideHighlightPanel';
 
 import type { DebugResult } from '@griffel/core';
 
@@ -95,6 +96,7 @@ export const FlattenView: React.FC<FlattenViewProps> = props => {
           {debugResultRoot.direction.toLocaleUpperCase()}
         </div>
       </div>
+      <OverrideHighlightPanel />
       <div className={classes.rules}>
         <ViewContext.Provider value={contextValue}>
           {filteredSlots.map(({ slot, rules, sourceURL }) => {
