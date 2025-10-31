@@ -87,17 +87,17 @@ export const OverrideHighlightPanel: React.FC = () => {
           existingStyle.remove();
         }
 
-        if (${highlightOverrides} || ${highlightUiClasses}) {
+        if (${JSON.stringify(highlightOverrides)} || ${JSON.stringify(highlightUiClasses)}) {
           const style = document.createElement('style');
           style.id = '__griffel_devtools_highlight__';
           let cssRules = '';
 
           // Highlight UI classes
-          if (${highlightUiClasses}) {
+          if (${JSON.stringify(highlightUiClasses)}) {
             const uiElements = document.querySelectorAll('[class*="ui-"]');
-            uiElements.forEach(el => {
+            for (const el of uiElements) {
               el.setAttribute('data-griffel-ui-highlight', 'true');
-            });
+            }
             cssRules += \`
               [data-griffel-ui-highlight] {
                 outline: 2px dashed blue !important;
@@ -106,22 +106,28 @@ export const OverrideHighlightPanel: React.FC = () => {
             \`;
           } else {
             // Remove UI highlighting
-            document.querySelectorAll('[data-griffel-ui-highlight]').forEach(el => {
+            const highlighted = document.querySelectorAll('[data-griffel-ui-highlight]');
+            for (const el of highlighted) {
               el.removeAttribute('data-griffel-ui-highlight');
-            });
+            }
           }
 
           // Highlight override classes (elements with both ui- classes and griffel atomic classes)
-          if (${highlightOverrides}) {
+          if (${JSON.stringify(highlightOverrides)}) {
             const allElements = document.querySelectorAll('[class*="ui-"]');
-            allElements.forEach(el => {
-              const classList = Array.from(el.classList);
-              const hasGriffelClass = classList.some(c => c.includes('___'));
+            for (const el of allElements) {
+              let hasGriffelClass = false;
+              for (const className of el.classList) {
+                if (className.includes('___')) {
+                  hasGriffelClass = true;
+                  break;
+                }
+              }
               
               if (hasGriffelClass) {
                 el.setAttribute('data-griffel-override-highlight', 'true');
               }
-            });
+            }
             cssRules += \`
               [data-griffel-override-highlight] {
                 outline: 2px dashed red !important;
@@ -130,9 +136,10 @@ export const OverrideHighlightPanel: React.FC = () => {
             \`;
           } else {
             // Remove override highlighting
-            document.querySelectorAll('[data-griffel-override-highlight]').forEach(el => {
+            const highlighted = document.querySelectorAll('[data-griffel-override-highlight]');
+            for (const el of highlighted) {
               el.removeAttribute('data-griffel-override-highlight');
-            });
+            }
           }
 
           style.textContent = cssRules;
@@ -153,14 +160,23 @@ export const OverrideHighlightPanel: React.FC = () => {
     }
 
     const listener = () => {
+      // $0 is Chrome DevTools' reference to the currently selected DOM element in the Elements panel
       const code = `
         (function() {
           const element = $0;
           if (!element) return null;
           
-          const classList = Array.from(element.classList);
-          const uiClasses = classList.filter(c => c.startsWith('ui-'));
-          const griffelClasses = classList.filter(c => c.includes('___'));
+          const uiClasses = [];
+          const griffelClasses = [];
+          
+          for (const className of element.classList) {
+            if (className.startsWith('ui-')) {
+              uiClasses.push(className);
+            }
+            if (className.includes('___')) {
+              griffelClasses.push(className);
+            }
+          }
           
           const hasUiClass = uiClasses.length > 0;
           const hasOverrides = hasUiClass && griffelClasses.length > 0;
@@ -174,7 +190,12 @@ export const OverrideHighlightPanel: React.FC = () => {
         })();
       `;
 
-      chrome.devtools.inspectedWindow.eval(code, {}, (result: unknown) => {
+      chrome.devtools.inspectedWindow.eval(code, {}, (result: unknown, exceptionInfo?: { isError: boolean }) => {
+        if (exceptionInfo?.isError) {
+          // Silently ignore errors - element may not be available
+          setSelectedElementInfo(null);
+          return;
+        }
         if (result) {
           setSelectedElementInfo(
             result as {
